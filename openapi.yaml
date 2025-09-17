@@ -1,0 +1,287 @@
+openapi: 3.0.3
+info:
+  title: Stock Market Dashboard API
+  version: 0.1.0
+  description: Minimal OpenAPI spec for the Stock Market Dashboard MVP (auth, portfolio, market, transactions, notifications, education)
+servers:
+  - url: http://localhost:4000
+    description: Local dev server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Credentials:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    TokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+    Position:
+      type: object
+      properties:
+        stock_symbol:
+          type: string
+        quantity:
+          type: integer
+        avg_price:
+          type: number
+          format: double
+    Portfolio:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        positions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+    TradeRequest:
+      type: object
+      required:
+        - stock_symbol
+        - action
+        - quantity
+        - price
+      properties:
+        stock_symbol:
+          type: string
+        action:
+          type: string
+          enum: [BUY, SELL]
+        quantity:
+          type: integer
+          minimum: 1
+        price:
+          type: number
+          format: double
+    MarketPrice:
+      type: object
+      properties:
+        symbol:
+          type: string
+        price:
+          type: number
+          format: double
+        change:
+          type: number
+          format: double
+        percent_change:
+          type: number
+          format: double
+        timestamp:
+          type: string
+          format: date-time
+    MarketHistoryItem:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        open:
+          type: number
+          format: double
+        high:
+          type: number
+          format: double
+        low:
+          type: number
+          format: double
+        close:
+          type: number
+          format: double
+        volume:
+          type: integer
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+tags:
+  - name: Auth
+  - name: Portfolio
+  - name: Market
+paths:
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: Create new user (signup)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+      responses:
+        '201':
+          description: Created - returns tokens + user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login (returns JWT + refresh token)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+      responses:
+        '200':
+          description: OK - returns tokens + user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /portfolio:
+    get:
+      tags: [Portfolio]
+      summary: List portfolios for current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of portfolios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Portfolio'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /portfolio/{id}/trade:
+    post:
+      tags: [Portfolio]
+      summary: Simulate a trade (buy/sell) in a portfolio
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TradeRequest'
+      responses:
+        '200':
+          description: Updated portfolio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Portfolio'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /market/price/{symbol}:
+    get:
+      tags: [Market]
+      summary: Get current price for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current market price
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketPrice'
+        '404':
+          description: Symbol not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /market/history/{symbol}:
+    get:
+      tags: [Market]
+      summary: Get OHLCV history for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: range
+          in: query
+          required: false
+          schema:
+            type: string
+            example: 30d
+          description: Range shorthand (e.g. 1d, 7d, 30d, 1y)
+      responses:
+        '200':
+          description: Array of OHLCV candles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MarketHistoryItem'
+        '404':
+          description: Symbol/history not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
