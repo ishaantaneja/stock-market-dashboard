@@ -4,16 +4,23 @@ import { Portfolio } from './pages/portfolio/portfolio';
 import { Market } from './pages/market/market';
 import { Notifications } from './pages/notifications/notifications';
 import { Education } from './pages/education/education';
-import { Login } from './auth/login/login';
-import { Signup } from './auth/signup/signup';
-
+import { LoginComponent } from './auth/login/login';
+import { SignupComponent } from './auth/signup/signup';
+import { AuthGuard } from './services/auth.guard';
+import { LayoutComponent } from './components/layout/layout';
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
-  { path: 'login', component: Login },
-  { path: 'signup', component: Signup },
-  { path: 'dashboard', component: Dashboard },
-  { path: 'portfolio', component: Portfolio },
-  { path: 'market', component: Market },
-  { path: 'notifications', component: Notifications },
-  { path: 'education', component: Education },
+  { path: 'login', component: LoginComponent },
+  { path: 'signup', component: SignupComponent },
+  {
+    path: '',
+    component: LayoutComponent,
+    children: [
+      { path: 'dashboard', component: Dashboard, canActivate: [AuthGuard] },
+      { path: 'portfolio', component: Portfolio, canActivate: [AuthGuard] },
+      { path: 'market', component: Market, canActivate: [AuthGuard] },
+      { path: 'notifications', component: Notifications, canActivate: [AuthGuard] },
+      { path: 'education', component: Education, canActivate: [AuthGuard] },
+    ],
+  },
 ];

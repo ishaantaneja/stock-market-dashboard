@@ -1,35 +1,47 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../environments/environment';
-import { Observable, tap } from 'rxjs';
+import { tap } from 'rxjs/operators';
+import { Observable } from 'rxjs';
 
-interface LoginResponse {
+interface AuthRes {
   token: string;
   refreshToken: string;
-  user: any;
+  user: { id: number; email: string };
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private apiUrl = environment.apiBaseUrl;
+  private base = 'http://localhost:4000/auth';
 
   constructor(private http: HttpClient) {}
 
-  login(data: { email: string; password: string }): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, data).pipe(
-      tap((res) => {
-        localStorage.setItem('token', res.token);
-        localStorage.setItem('refreshToken', res.refreshToken);
-      })
-    );
+  login(credentials: { email: string; password: string }): Observable<AuthRes> {
+    return this.http.post<AuthRes>(`${this.base}/login`, credentials)
+      .pipe(tap(res => this.storeTokens(res.token, res.refreshToken)));
   }
 
-  signup(data: { email: string; password: string }): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/signup`, data);
+  signup(credentials: { email: string; password: string }): Observable<AuthRes> {
+    return this.http.post<AuthRes>(`${this.base}/signup`, credentials)
+      .pipe(tap(res => this.storeTokens(res.token, res.refreshToken)));
   }
 
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
+  }
+
+  isLoggedIn(): boolean {
+    const token = localStorage.getItem('token');
+    // naive JWT expiry check (for demo)
+    return !!token;
+  }
+
+  private storeTokens(token: string, refreshToken: string) {
+    localStorage.setItem('token', token);
+    localStorage.setItem('refreshToken', refreshToken);
+  }
+
+  getToken(): string | null {
+    return localStorage.getItem('token');
   }
 }

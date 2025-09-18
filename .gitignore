@@ -83,3 +83,7 @@ docker-compose.override.yml
 *.swp
 *.swo
 *.tmp
+
+backend_dump.txt
+frontend_dump.txt
+dump/
