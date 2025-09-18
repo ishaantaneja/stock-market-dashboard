@@ -2,30 +2,46 @@ import { Component } from '@angular/core';
 import { FormBuilder, Validators, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth';
-import { Router } from '@angular/router'; // Import Router
+import { Router, RouterModule } from '@angular/router';
+
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './login.html',
 })
 export class LoginComponent {
   form: FormGroup;
-  constructor(private fb: FormBuilder, private authService: AuthService, private router: Router) { // Inject Router
+  alertMessage = '';
+  alertType: 'success' | 'error' = 'success';
+
+  constructor(
+    private fb: FormBuilder,
+    private authService: AuthService,
+    private router: Router
+  ) {
     this.form = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', Validators.required],
     });
   }
+
   onSubmit() {
     if (this.form.invalid) return;
     const { email, password } = this.form.value;
+
     this.authService.login({ email, password }).subscribe({
       next: (res) => {
-        console.log('Login success:', res);
-        this.router.navigate(['/dashboard']); // Navigate to dashboard on success
+        this.alertType = 'success';
+        this.alertMessage = 'Login successful! Redirecting...';
+        setTimeout(() => {
+          this.router.navigate(['/dashboard']);
+        }, 1000);
       },
-      error: (err) => console.error('Login failed:', err),
+      error: (err) => {
+        this.alertType = 'error';
+        this.alertMessage = err.error?.message || 'Login failed';
+      },
     });
   }
 }

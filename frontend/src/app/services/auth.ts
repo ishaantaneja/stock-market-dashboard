@@ -11,7 +11,7 @@ interface AuthRes {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private base = 'http://localhost:4000/auth';
+  private base = 'http://localhost:3000/auth';
 
   constructor(private http: HttpClient) {}
 
@@ -31,17 +31,15 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    const token = localStorage.getItem('token');
-    // naive JWT expiry check (for demo)
-    return !!token;
+    return !!localStorage.getItem('token');
+  }
+
+  getToken(): string | null {
+    return localStorage.getItem('token');
   }
 
   private storeTokens(token: string, refreshToken: string) {
     localStorage.setItem('token', token);
     localStorage.setItem('refreshToken', refreshToken);
-  }
-
-  getToken(): string | null {
-    return localStorage.getItem('token');
   }
 }

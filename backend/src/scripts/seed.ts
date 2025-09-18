@@ -1,10 +1,11 @@
+// backend/src/scripts/seed.ts
 import { PrismaClient } from "@prisma/client";
-import * as bcrypt from "bcrypt";
+import argon2 from "argon2";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // Clear existing data
+  // Clean database
   await prisma.notification.deleteMany();
   await prisma.transaction.deleteMany();
   await prisma.position.deleteMany();
@@ -12,8 +13,10 @@ async function main() {
   await prisma.user.deleteMany();
   await prisma.education.deleteMany();
 
-  // Create a demo user
-  const passwordHash = await bcrypt.hash("password123", 10);
+  // Hash password using argon2 (matches authService)
+  const passwordHash = await argon2.hash("password123");
+
+  // Create demo user
   const user = await prisma.user.create({
     data: {
       email: "demo@example.com",
@@ -21,7 +24,7 @@ async function main() {
     },
   });
 
-  // Create a portfolio
+  // Create portfolio for the user
   const portfolio = await prisma.portfolio.create({
     data: {
       userId: user.id,
@@ -29,45 +32,23 @@ async function main() {
     },
   });
 
-  // Add positions
+  // Seed some positions
   await prisma.position.createMany({
     data: [
-      {
-        portfolioId: portfolio.id,
-        stockSymbol: "AAPL",
-        quantity: 10,
-        avgPrice: 150,
-      },
-      {
-        portfolioId: portfolio.id,
-        stockSymbol: "TSLA",
-        quantity: 5,
-        avgPrice: 700,
-      },
+      { portfolioId: portfolio.id, stockSymbol: "AAPL", quantity: 10, avgPrice: 150 },
+      { portfolioId: portfolio.id, stockSymbol: "TSLA", quantity: 5, avgPrice: 700 },
     ],
   });
 
-  // Add transactions
+  // Seed some transactions
   await prisma.transaction.createMany({
     data: [
-      {
-        userId: user.id,
-        stockSymbol: "AAPL",
-        action: "BUY",
-        quantity: 10,
-        price: 150,
-      },
-      {
-        userId: user.id,
-        stockSymbol: "TSLA",
-        action: "BUY",
-        quantity: 5,
-        price: 700,
-      },
+      { userId: user.id, stockSymbol: "AAPL", action: "BUY", quantity: 10, price: 150 },
+      { userId: user.id, stockSymbol: "TSLA", action: "BUY", quantity: 5, price: 700 },
     ],
   });
 
-  // Add notifications
+  // Create notification
   await prisma.notification.create({
     data: {
       userId: user.id,
@@ -75,17 +56,11 @@ async function main() {
     },
   });
 
-  // Add education content
+  // Seed education articles
   await prisma.education.createMany({
     data: [
-      {
-        title: "What is a Stock?",
-        content: "A stock represents a share in the ownership of a company.",
-      },
-      {
-        title: "What is a Portfolio?",
-        content: "A portfolio is a collection of investments held by an individual.",
-      },
+      { title: "What is a Stock?", content: "A stock represents a share in the ownership of a company." },
+      { title: "What is a Portfolio?", content: "A portfolio is a collection of investments held by an individual." },
     ],
   });
 
