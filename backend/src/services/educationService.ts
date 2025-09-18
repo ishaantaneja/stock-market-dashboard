@@ -1,48 +1,34 @@
-import prisma from "../db/prismaClient";
-
-// A simple data access layer for educational content.
-export async function getAllArticles() {
-  return prisma.education.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+export interface Article {
+  id: number;
+  title: string;
+  content: string;
+  createdAt: string;
 }
 
-export async function getArticleById(id: number) {
-  return prisma.education.findUnique({
-    where: { id },
-  });
+// Demo seed data
+const articles: Article[] = [
+  { id: 1, title: "Intro to Stocks", content: "Learn the basics of stock market.", createdAt: "2025-09-18" },
+  { id: 2, title: "Technical Analysis", content: "Understanding charts and indicators.", createdAt: "2025-09-18" },
+  { id: 3, title: "Risk Management", content: "How to protect your portfolio.", createdAt: "2025-09-18" },
+  { id: 4, title: "Long-term Investing", content: "Grow wealth steadily over years.", createdAt: "2025-09-18" },
+  { id: 5, title: "Day Trading Basics", content: "Quick trades for short-term gains.", createdAt: "2025-09-18" },
+  { id: 6, title: "Market Psychology", content: "Understanding investor behavior.", createdAt: "2025-09-18" },
+  // ... add more articles as needed
+];
+
+/**
+ * Get a paginated list of articles
+ * @param offset number of items to skip
+ * @param limit number of items to return
+ */
+export async function getArticles(offset: number, limit: number): Promise<Article[]> {
+  return articles.slice(offset, offset + limit);
 }
 
-export async function createDummyArticles() {
-  // This is a dummy function for seeding the database with content.
-  // In a real-world scenario, you would have a separate seeding script.
-  const articles = [
-    {
-      title: "Introduction to Stock Markets",
-      content: "Stocks represent a share of ownership in a corporation. When you buy a company's stock, you become a part-owner of that company...",
-    },
-    {
-      title: "Understanding Bull and Bear Markets",
-      content: "A bull market is a period where stock prices are rising. A bear market is the opposite, characterized by falling prices...",
-    },
-    {
-      title: "The Power of Compounding",
-      content: "Compounding is the process where your investments generate earnings, and those earnings are reinvested to generate their own earnings...",
-    },
-  ];
-  
-  // The 'skipDuplicates' property is not supported by the SQLite provider.
-  // We'll use a try...catch block to handle the unique constraint error
-  // that would occur if the articles already exist.
-  try {
-    await prisma.education.createMany({
-      data: articles,
-    });
-  } catch (error) {
-    // If the error is a unique constraint failure, we can safely ignore it.
-    // Otherwise, we re-throw the error.
-    if (error instanceof Error && !error.message.includes("Unique constraint failed")) {
-      throw error;
-    }
-  }
+/**
+ * Get single article by ID
+ * @param id article ID
+ */
+export async function getArticleById(id: number): Promise<Article | undefined> {
+  return articles.find((a) => a.id === id);
 }

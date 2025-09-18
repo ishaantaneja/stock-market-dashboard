@@ -6,6 +6,7 @@ import marketRoutes from "./routes/marketRoutes";
 import portfolioRoutes from "./routes/portfolioRoutes";
 import { educationRoutes } from "./routes/educationRoutes";
 import { notificationRoutes } from "./routes/notificationRoutes";
+import { setupWebsocket } from "./utils/websocket";
 
 const server = Fastify({ logger: true });
 
@@ -34,6 +35,8 @@ server.register(marketRoutes, { prefix: "/market" });
 server.register(portfolioRoutes);
 server.register(educationRoutes, { prefix: "/education" });
 server.register(notificationRoutes, { prefix: "/notifications" });
+
+setupWebsocket(server);
 
 const start = async () => {
   try {
