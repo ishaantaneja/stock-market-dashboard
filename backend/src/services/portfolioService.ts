@@ -1,59 +1,55 @@
-// src/services/portfolioService.ts
-import { prisma } from "../db/prismaClient";
+import prisma from "../db/prismaClient";
+import { TradeRequest } from "../models/portfolio";
+import { getMarketPrice } from "./marketService";
 
-interface TradeData {
-  stockSymbol: string;
-  action: "BUY" | "SELL";
-  quantity: number;
-  price: number;
-}
-
-// Get all portfolios for a user
-export async function getAllPortfolios(userId: number) {
+export async function getPortfolios(userId: number) {
   return prisma.portfolio.findMany({
     where: { userId },
     include: { positions: true },
-    orderBy: { createdAt: "desc" },
   });
 }
 
-// Create new portfolio for user
-export async function createNewPortfolio(name: string, userId: number) {
+export async function createPortfolio(userId: number, name: string) {
   return prisma.portfolio.create({
-    data: { name, userId },
-    include: { positions: true },
+    data: {
+      userId,
+      name,
+    },
   });
 }
 
-// Execute a trade: update Positions + create Transaction (atomic, auth checked)
-export async function executeTrade(userId: number, portfolioId: number, trade: TradeData) {
+export async function tradeStock(
+  userId: number,
+  portfolioId: number,
+  trade: TradeRequest
+) {
   const { stockSymbol, action, quantity, price } = trade;
-
-  // ensure portfolio exists and belongs to user
-  const portfolio = await prisma.portfolio.findUnique({ where: { id: portfolioId } });
-  if (!portfolio || portfolio.userId !== userId) {
-    throw new Error("Portfolio not found or unauthorized");
-  }
+  const currentPrice = price ?? (await getMarketPrice(stockSymbol)).price;
 
   return prisma.$transaction(async (tx) => {
-    // find current position inside transaction
     let position = await tx.position.findFirst({
       where: { portfolioId, stockSymbol },
     });
 
     if (action === "BUY") {
       if (position) {
-        const totalQty = position.quantity + quantity;
-        const totalCost = position.avgPrice * position.quantity + price * quantity;
-        const newAvgPrice = totalCost / totalQty;
+        const totalCost =
+          position.avgPrice * position.quantity + currentPrice * quantity;
+        const newQty = position.quantity + quantity;
+        const newAvgPrice = totalCost / newQty;
 
         position = await tx.position.update({
           where: { id: position.id },
-          data: { quantity: totalQty, avgPrice: newAvgPrice },
+          data: { quantity: newQty, avgPrice: newAvgPrice },
         });
       } else {
         position = await tx.position.create({
-          data: { portfolioId, stockSymbol, quantity, avgPrice: price },
+          data: {
+            portfolioId,
+            stockSymbol,
+            quantity,
+            avgPrice: currentPrice,
+          },
         });
       }
     } else if (action === "SELL") {
@@ -62,43 +58,46 @@ export async function executeTrade(userId: number, portfolioId: number, trade: T
       }
 
       const newQty = position.quantity - quantity;
+
       if (newQty === 0) {
         await tx.position.delete({ where: { id: position.id } });
-        position = null as any;
       } else {
         position = await tx.position.update({
           where: { id: position.id },
           data: { quantity: newQty },
         });
       }
-    } else {
-      throw new Error("Invalid action");
     }
 
-    // create transaction record
     const transaction = await tx.transaction.create({
-      data: { userId, stockSymbol, action, quantity, price },
+      data: {
+        userId,
+        stockSymbol,
+        action,
+        quantity,
+        price: currentPrice,
+      },
     });
 
     return { position, transaction };
   });
 }
 
-// Get portfolio analytics: total invested, current value (currently uses avgPrice; can plug market API)
-export async function getPortfolioAnalytics(userId: number, portfolioId: number) {
-  const portfolio = await prisma.portfolio.findUnique({ where: { id: portfolioId } });
-  if (!portfolio || portfolio.userId !== userId) {
-    throw new Error("Portfolio not found or unauthorized");
-  }
-
+export async function getPortfolioAnalytics(portfolioId: number) {
   const positions = await prisma.position.findMany({
     where: { portfolioId },
   });
 
-  const totalInvested = positions.reduce((acc, p) => acc + p.avgPrice * p.quantity, 0);
+  let totalInvested = 0;
+  let totalValue = 0;
 
-  // TODO: call market API to get real current price per symbol to compute real totalValue
-  const totalValue = totalInvested;
+  for (const pos of positions) {
+    const { price } = await getMarketPrice(pos.stockSymbol);
+    totalInvested += pos.avgPrice * pos.quantity;
+    totalValue += price * pos.quantity;
+  }
 
-  return { portfolioId, totalInvested, totalValue, positions };
+  const pnl = totalValue - totalInvested;
+
+  return { totalInvested, totalValue, pnl, positions };
 }

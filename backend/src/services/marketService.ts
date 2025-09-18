@@ -1,103 +1,66 @@
-// src/services/marketService.ts
 import axios from "axios";
+import { MarketPrice, MarketHistoryItem } from "../models/market";
 
-const API_KEY = process.env.MARKET_API_KEY || "demo";
-const BASE_URL = "https://www.alphavantage.co/query";
+const FINNHUB_KEY = process.env.FINNHUB_KEY;
+const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
 
-const priceCache = new Map<string, { ts: number; data: any }>();
-const historyCache = new Map<string, { ts: number; data: any }>();
+const apiCache = new Map<string, { timestamp: number; data: any }>();
+const CACHE_TTL = 60 * 1000; // 60 seconds
 
-const PRICE_TTL = 10_000; // 10s cache for price (ms)
-const HISTORY_TTL = 1000 * 60 * 60 * 6; // 6h cache for history (ms)
+async function fetchFromFinnhub(endpoint: string): Promise<any> {
+  if (!FINNHUB_KEY) throw new Error("Finnhub API key missing in .env");
 
-function normalizeSymbol(sym: string) {
-  return sym.trim().toUpperCase();
-}
+  const cacheKey = `${FINNHUB_BASE_URL}/${endpoint}`;
+  const cached = apiCache.get(cacheKey);
 
-function checkApiError(body: any) {
-  if (!body) throw new Error("Empty response from market provider");
-  if (body.Note) throw new Error("Market API rate limit: " + body.Note);
-  if (body["Error Message"]) throw new Error("Market API error: " + body["Error Message"]);
-}
-
-// Fetch and normalize current price
-export async function fetchPrice(symbol: string) {
-  const sym = normalizeSymbol(symbol);
-  const key = `price:${sym}`;
-  const now = Date.now();
-
-  const cached = priceCache.get(key);
-  if (cached && now - cached.ts < PRICE_TTL) return cached.data;
-
-  const url = `${BASE_URL}?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(sym)}&apikey=${API_KEY}`;
-
-  try {
-    const res = await axios.get(url, { timeout: 5000 });
-    const body = res.data;
-    checkApiError(body);
-
-    const quote = body["Global Quote"] || {};
-    const priceRaw = quote["05. price"] ?? quote["05. price"] ?? null;
-    const price = priceRaw ? Number(priceRaw) : null;
-
-    const out = {
-      symbol: sym,
-      price,
-      timestamp: Date.now(),
-      raw: body,
-    };
-
-    priceCache.set(key, { ts: now, data: out });
-    return out;
-  } catch (err: any) {
-    throw new Error(err.message ?? "Failed to fetch price");
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
   }
+
+  const response = await axios.get(`${FINNHUB_BASE_URL}/${endpoint}`, {
+    params: { token: FINNHUB_KEY },
+  });
+
+  apiCache.set(cacheKey, { timestamp: Date.now(), data: response.data });
+  return response.data;
 }
 
-// Fetch and normalize historical OHLCV
-export async function fetchHistory(symbol: string, days = 365) {
-  const sym = normalizeSymbol(symbol);
-  const key = `history:${sym}:${days}`;
-  const now = Date.now();
+/** Get current stock price */
+export async function getMarketPrice(symbol: string): Promise<MarketPrice> {
+  const data = await fetchFromFinnhub(`quote?symbol=${symbol}`);
+  return {
+    symbol,
+    price: data.c,
+    high: data.h,
+    low: data.l,
+    open: data.o,
+    previousClose: data.pc,
+    timestamp: data.t,
+  };
+}
 
-  const cached = historyCache.get(key);
-  if (cached && now - cached.ts < HISTORY_TTL) return cached.data;
+/** Get historical price data */
+export async function getMarketHistory(symbol: string, range: string): Promise<MarketHistoryItem[]> {
+  const now = Math.floor(Date.now() / 1000);
+  let from = now - 60 * 60 * 24 * 30; // default 1 month
+  let resolution = "D";
 
-  const url = `${BASE_URL}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${encodeURIComponent(sym)}&outputsize=full&apikey=${API_KEY}`;
-
-  try {
-    const res = await axios.get(url, { timeout: 7000 });
-    const body = res.data;
-    checkApiError(body);
-
-    const series = body["Time Series (Daily)"] || {};
-    const arr = Object.entries(series).map(([date, vals]) => {
-      const v = vals as Record<string, string>;
-      return {
-        date,
-        open: Number(v["1. open"]),
-        high: Number(v["2. high"]),
-        low: Number(v["3. low"]),
-        close: Number(v["4. close"]),
-        adjustedClose: Number(v["5. adjusted close"] ?? v["4. close"]),
-        volume: Number(v["6. volume"] ?? v["5. volume"] ?? 0),
-      };
-    })
-    // sort ascending by date
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-    const sliced = days > 0 ? arr.slice(-days) : arr; // last `days` entries
-
-    const out = {
-      symbol: sym,
-      history: sliced,
-      timestamp: Date.now(),
-      raw: body,
-    };
-
-    historyCache.set(key, { ts: now, data: out });
-    return out;
-  } catch (err: any) {
-    throw new Error(err.message ?? "Failed to fetch history");
+  switch (range) {
+    case "1d": from = now - 60 * 60 * 24; resolution = "1"; break;
+    case "1w": from = now - 60 * 60 * 24 * 7; resolution = "60"; break;
+    case "1m": from = now - 60 * 60 * 24 * 30; resolution = "D"; break;
+    case "1y": from = now - 60 * 60 * 24 * 365; resolution = "W"; break;
   }
+
+  const data = await fetchFromFinnhub(`stock/candle?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${now}`);
+  if (!data || data.s === "no_data") return [];
+
+  return data.t.map((timestamp: number, i: number) => ({
+    timestamp,
+    open: data.o[i],
+    high: data.h[i],
+    low: data.l[i],
+    close: data.c[i],
+    volume: data.v[i],
+  }));
 }

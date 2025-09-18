@@ -1,40 +1,29 @@
-// src/controllers/marketController.ts
-import { FastifyRequest, FastifyReply } from "fastify";
-import { fetchPrice, fetchHistory } from "../services/marketService";
+import { FastifyReply, FastifyRequest } from "fastify";
+import { getMarketPrice, getMarketHistory } from "../services/marketService";
 
-export async function getPrice(
+export async function getMarketPriceHandler(
   req: FastifyRequest<{ Params: { symbol: string } }>,
   reply: FastifyReply
 ) {
-  const symbol = req.params?.symbol;
-  if (!symbol) return reply.status(400).send({ error: "symbol param required" });
-
   try {
-    const data = await fetchPrice(symbol);
-    return reply.send(data);
+    const { symbol } = req.params;
+    const price = await getMarketPrice(symbol);
+    reply.send(price);
   } catch (err: any) {
-    req.log?.error(err);
-    return reply.status(502).send({ error: err.message ?? "Market provider error" });
+    reply.status(500).send({ error: err.message });
   }
 }
 
-export async function getHistory(
-  req: FastifyRequest<{ Params: { symbol: string }; Querystring: { days?: string } }>,
+export async function getMarketHistoryHandler(
+  req: FastifyRequest<{ Params: { symbol: string }; Querystring: { range?: string } }>,
   reply: FastifyReply
 ) {
-  const symbol = req.params?.symbol;
-  if (!symbol) return reply.status(400).send({ error: "symbol param required" });
-
-  const daysQs = (req.query as any)?.days;
-  const days = daysQs ? Number(daysQs) : 365;
-
-  if (Number.isNaN(days) || days < 0) return reply.status(400).send({ error: "days query must be a positive number" });
-
   try {
-    const data = await fetchHistory(symbol, days);
-    return reply.send(data);
+    const { symbol } = req.params;
+    const { range = "1m" } = req.query;
+    const history = await getMarketHistory(symbol, range);
+    reply.send(history);
   } catch (err: any) {
-    req.log?.error(err);
-    return reply.status(502).send({ error: err.message ?? "Market provider error" });
+    reply.status(500).send({ error: err.message });
   }
 }

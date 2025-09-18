@@ -1,10 +1,12 @@
-import argon2 from "argon2";
+import bcrypt from "bcrypt";
 
-// Utility functions for cryptographic hashing.
+/** Hash a plain-text password */
 export async function hashPassword(password: string): Promise<string> {
-  return argon2.hash(password);
+  const saltRounds = 10;
+  return bcrypt.hash(password, saltRounds);
 }
 
-export async function verifyPassword(passwordHash: string, password: string): Promise<boolean> {
-  return argon2.verify(passwordHash, password);
+/** Verify a plain-text password against a stored hash */
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }

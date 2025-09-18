@@ -1,31 +1,29 @@
 import Fastify from "fastify";
-import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
-import dotenv from "dotenv";
-import { authRoutes } from "./routes/authRoutes";
-import { portfolioRoutes } from "./routes/portfolioRoutes";
-import { marketRoutes } from "./routes/marketRoutes";
 
-dotenv.config();
+import authRoutes from "./routes/authRoutes";
+import marketRoutes from "./routes/marketRoutes";
+import portfolioRoutes from "./routes/portfolioRoutes";
+import { educationRoutes } from "./routes/educationRoutes";
+import { notificationRoutes } from "./routes/notificationRoutes";
 
 const server = Fastify({ logger: true });
 
-server.register(cors, { origin: "*" });
-server.register(jwt, { secret: process.env.JWT_SECRET! });
+// JWT plugin
+server.register(jwt, { secret: process.env.JWT_SECRET || "supersecret" });
 
-// Register routes
+// Routes
 server.register(authRoutes, { prefix: "/auth" });
-server.register(portfolioRoutes, { prefix: "/portfolio" });
 server.register(marketRoutes, { prefix: "/market" });
+server.register(portfolioRoutes, { prefix: "/portfolio" });
+server.register(educationRoutes, { prefix: "/education" });
+server.register(notificationRoutes, { prefix: "/notifications" });
 
-const start = async () => {
-  try {
-    await server.listen({ port: 4000 });
-    console.log("Server running on http://localhost:4000");
-  } catch (err) {
+// Start server
+server.listen({ port: 3000 }, (err, address) => {
+  if (err) {
     server.log.error(err);
     process.exit(1);
   }
-};
-
-start();
+  console.log(`🚀 Server ready at ${address}`);
+});

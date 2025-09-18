@@ -1,4 +1,4 @@
-import { prisma } from "../db/prismaClient";
+import prisma from "../db/prismaClient";
 
 // A simple data access layer for educational content.
 export async function getAllArticles() {
