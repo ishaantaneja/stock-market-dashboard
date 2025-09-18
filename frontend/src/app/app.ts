@@ -5,9 +5,10 @@ import { Sidebar } from './components/sidebar/sidebar';
 
 @Component({
   selector: 'app-root',
+  standalone: true,
   imports: [RouterOutlet, Navbar, Sidebar],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrls: ['./app.scss']   // ✅ corrected
 })
 export class App {
   protected readonly title = signal('frontend');
