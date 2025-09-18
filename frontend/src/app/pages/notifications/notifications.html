@@ -1,1 +1,4 @@
-<p>notifications works!</p>
+<h2 class="text-2xl font-bold mb-4">Notifications</h2>
+<div *ngFor="let msg of messages()" [ngClass]="msg.type==='error' ? 'text-red-600' : 'text-green-600'">
+  {{ msg.text }}
+</div>

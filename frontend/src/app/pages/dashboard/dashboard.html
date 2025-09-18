@@ -1,1 +1,4 @@
-<p>dashboard works!</p>
+<h2 class="text-2xl font-bold mb-4">Dashboard</h2>
+<div *ngFor="let stock of stocks()">
+  <p>{{ stock.symbol }}: {{ stock.price | number:'1.2-2' }}</p>
+</div>

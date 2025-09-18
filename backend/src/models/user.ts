@@ -1,5 +1,5 @@
 export interface User {
-  id: string;
+  id: number;           // changed from string → number
   email: string;
   passwordHash: string;
   createdAt: Date;
