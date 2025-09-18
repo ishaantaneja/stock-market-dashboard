@@ -1,29 +1,24 @@
-import { Component, signal, OnInit } from '@angular/core';
-import { CommonModule, DecimalPipe } from '@angular/common';
-import { MarketService } from '../../services/market';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { WSClient } from '../../core/ws-client';
+
 
 @Component({
   selector: 'app-dashboard',
-  standalone: true,
-  imports: [CommonModule, DecimalPipe],
-  templateUrl: './dashboard.html',
-  styleUrls: ['./dashboard.scss']
+  templateUrl: './dashboard.component.html',
 })
-export class Dashboard implements OnInit {
-  stocks = signal<{symbol: string, price: number}[]>([
-    { symbol: 'AAPL', price: 0 },
-    { symbol: 'TSLA', price: 0 }
-  ]);
-
-  constructor(private market: MarketService) {}
+export class DashboardComponent implements OnInit, OnDestroy {
+  private wsClient!: WSClient;
 
   ngOnInit() {
-    this.stocks().forEach((stock, idx) => {
-      this.market.getPrice(stock.symbol).subscribe((res: any) => {
-        const copy = [...this.stocks()];
-        copy[idx].price = res.price;
-        this.stocks.set(copy);
-      });
-    });
+    const token = localStorage.getItem('token') || '';
+    this.wsClient = new WSClient(token);
+
+    // Subscribe to a stock
+    this.wsClient.subscribe('AAPL');
+    this.wsClient.subscribe('TSLA');
+  }
+
+  ngOnDestroy() {
+    this.wsClient.close();
   }
 }

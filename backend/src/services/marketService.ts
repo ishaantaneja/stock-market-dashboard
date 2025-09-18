@@ -1,3 +1,4 @@
+// backend/src/services/marketService.ts
 import axios from "axios";
 import { MarketPrice, MarketHistoryItem } from "../models/market";
 
@@ -40,19 +41,37 @@ export async function getMarketPrice(symbol: string): Promise<MarketPrice> {
 }
 
 /** Get historical price data */
-export async function getMarketHistory(symbol: string, range: string): Promise<MarketHistoryItem[]> {
+export async function getMarketHistory(
+  symbol: string,
+  range: string
+): Promise<MarketHistoryItem[]> {
   const now = Math.floor(Date.now() / 1000);
   let from = now - 60 * 60 * 24 * 30; // default 1 month
   let resolution = "D";
 
   switch (range) {
-    case "1d": from = now - 60 * 60 * 24; resolution = "1"; break;
-    case "1w": from = now - 60 * 60 * 24 * 7; resolution = "60"; break;
-    case "1m": from = now - 60 * 60 * 24 * 30; resolution = "D"; break;
-    case "1y": from = now - 60 * 60 * 24 * 365; resolution = "W"; break;
+    case "1d":
+      from = now - 60 * 60 * 24;
+      resolution = "1";
+      break;
+    case "1w":
+      from = now - 60 * 60 * 24 * 7;
+      resolution = "60";
+      break;
+    case "1m":
+      from = now - 60 * 60 * 24 * 30;
+      resolution = "D";
+      break;
+    case "1y":
+      from = now - 60 * 60 * 24 * 365;
+      resolution = "W";
+      break;
   }
 
-  const data = await fetchFromFinnhub(`stock/candle?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${now}`);
+  const data = await fetchFromFinnhub(
+    `stock/candle?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${now}`
+  );
+
   if (!data || data.s === "no_data") return [];
 
   return data.t.map((timestamp: number, i: number) => ({
