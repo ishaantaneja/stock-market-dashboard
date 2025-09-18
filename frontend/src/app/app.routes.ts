@@ -12,6 +12,11 @@ export const routes: Routes = [
   { path: 'market', component: Market },
   { path: 'notifications', component: Notifications },
   { path: 'education', component: Education },
-  // lazy-load auth module
-  { path: '', loadChildren: () => import('./auth/auth-module').then(m => m.AuthModule) },
+
+  // Lazy-load AuthRoutingModule
+  {
+    path: '',
+    loadChildren: () =>
+      import('./auth/auth-routing-module').then((m) => m.AuthRoutingModule),
+  },
 ];

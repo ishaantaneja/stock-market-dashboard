@@ -1,16 +1,18 @@
 import { Component } from '@angular/core';
-import { FormBuilder, Validators, FormGroup } from '@angular/forms';
+import { FormBuilder, Validators, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth';
 
 @Component({
   selector: 'app-signup',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './signup.html',
 })
 export class Signup {
   form: FormGroup;
 
   constructor(private fb: FormBuilder, private authService: AuthService) {
-    // initialize form here, after fb is available
     this.form = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', Validators.required],

@@ -1,16 +1,18 @@
 import { Component } from '@angular/core';
-import { FormBuilder, Validators, FormGroup } from '@angular/forms';
+import { FormBuilder, Validators, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth';
 
 @Component({
   selector: 'app-login',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './login.html',
 })
 export class Login {
   form: FormGroup;
 
   constructor(private fb: FormBuilder, private authService: AuthService) {
-    // Initialize reactive form here (after fb is available)
     this.form = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', Validators.required],
@@ -20,8 +22,6 @@ export class Login {
   onSubmit() {
     if (this.form.valid) {
       const { email, password } = this.form.value;
-
-      // Extra guard for strict typing
       if (!email || !password) return;
 
       this.authService.login({ email, password }).subscribe({
